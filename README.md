@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Log — velog 스타일 블로그 서비스
 
-## Getting Started
+Next.js(App Router) + Supabase(Postgres, Auth) 기반의 블로그 플랫폼입니다.
 
-First, run the development server:
+## 주요 기능
+- 이메일/비밀번호 로그인 및 회원가입 (Supabase Auth)
+- 메인 피드: 최신 / 🔥 Hot(좋아요·조회수) / 📈 Trend(최근 5일 조회수 급상승)
+- 마크다운 에디터로 글 작성·수정·삭제
+- 마이페이지: 내가 작성한 글, 글 수·조회수·좋아요·팔로워/팔로잉 통계
+- 댓글, 좋아요, 팔로우 등 기본 소셜 기능
+- 사용자 프로필 페이지 (`/users/[username]`)
 
+## 시작하기
+
+### 1. Supabase 프로젝트 생성
+1. https://supabase.com 에서 새 프로젝트를 생성합니다.
+2. `supabase/schema.sql` 파일 내용을 Supabase 대시보드의 **SQL Editor**에 붙여넣고 실행합니다. (테이블, RLS 정책, 트리거, trend용 뷰가 모두 생성됩니다.)
+3. **Project Settings > API** 에서 `Project URL`과 `anon public key`를 확인합니다.
+4. (선택) **Authentication > Sign In / Providers > Email**에서 `Confirm email`을 꺼두면 회원가입과 동시에 로그인되어 로컬 개발이 더 편합니다. 켜두면 가입 시 인증 메일을 확인해야 로그인할 수 있습니다.
+5. **Authentication > URL Configuration**에서 `Site URL`을 `http://localhost:3000`으로, `Redirect URLs`에 `http://localhost:3000/auth/callback`을 추가합니다. (이메일 인증 링크 리다이렉트용)
+
+### 2. 환경 변수 설정
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.local.example .env.local
 ```
+`.env.local`을 열어 Supabase URL/anon key를 입력합니다.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 3. 개발 서버 실행
+```bash
+npm install
+npm run dev
+```
+http://localhost:3000 에서 확인할 수 있습니다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 폴더 구조
+- `src/app` — 라우트별 페이지 (App Router)
+- `src/lib/supabase` — Supabase 클라이언트(브라우저/서버/미들웨어), DB 타입
+- `src/lib/actions` — 서버 액션 (글 CRUD, 좋아요/댓글/팔로우, 인증)
+- `src/components` — 공용 UI 컴포넌트
+- `supabase/schema.sql` — DB 스키마 (테이블, RLS, 트리거, trend 뷰)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Hot / Trend 기준
+- **Hot**: 좋아요 수 → 조회수 순으로 정렬
+- **Trend**: `post_views` 이벤트 로그를 기반으로 최근 5일 이내 조회수가 많은 글 순 (`trending_posts` 뷰 사용)
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 배포
+현재는 로컬 개발까지만 구성되어 있습니다. 추후 Vercel 등에 배포할 때는 동일한 환경 변수를 배포 환경에 설정하고, Supabase Auth의 Site URL / Redirect URLs에 배포 도메인을 추가하면 됩니다.
