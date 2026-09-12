@@ -52,3 +52,18 @@ http://localhost:3000 에서 확인할 수 있습니다.
 - `npm run lint`
 - `npm run test --if-present` (테스트 스크립트가 있을 때만 실행)
 - `npm run build`
+
+## GitHub CD(메인 머지 후 자동 배포)
+`.github/workflows/cd.yml`은 **CI 워크플로가 성공으로 끝난 뒤**, 그리고 대상 브랜치가 **main**일 때만 실행됩니다.
+
+즉, PR을 main에 머지하면:
+1. main 기준 CI 실행
+2. CI 성공 시 CD 실행
+3. Vercel 프로덕션 배포
+
+### GitHub Secrets 설정 (Repository → Settings → Secrets and variables → Actions)
+- `VERCEL_TOKEN` : Vercel Personal Token
+- `VERCEL_ORG_ID` : Vercel Team/Org ID
+- `VERCEL_PROJECT_ID` : Vercel Project ID
+
+위 3개가 설정되어야 CD가 정상 동작합니다.
