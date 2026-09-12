@@ -45,3 +45,10 @@ http://localhost:3000 에서 확인할 수 있습니다.
 
 ## 배포
 현재는 로컬 개발까지만 구성되어 있습니다. 추후 Vercel 등에 배포할 때는 동일한 환경 변수를 배포 환경에 설정하고, Supabase Auth의 Site URL / Redirect URLs에 배포 도메인을 추가하면 됩니다.
+
+## GitHub CI(자동 품질 검증)
+소스를 GitHub에 push하거나 PR을 올리면 `.github/workflows/ci.yml`이 자동 실행되어 아래를 검증합니다.
+- `npm ci`
+- `npm run lint`
+- `npm run test --if-present` (테스트 스크립트가 있을 때만 실행)
+- `npm run build`
