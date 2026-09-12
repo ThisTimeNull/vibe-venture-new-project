@@ -1,59 +1,35 @@
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import PostCard from "@/components/PostCard";
 import FollowButton from "@/components/FollowButton";
-import type { PostWithAuthor } from "@/lib/supabase/types";
+import { getBlogProvider } from "@/lib/mock/provider";
+import { withMockScenario } from "@/lib/mock/url";
 
 export const dynamic = "force-dynamic";
 
 export default async function UserProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ username: string }>;
+  searchParams: Promise<{ mockScenario?: string }>;
 }) {
   const { username } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("username", username)
-    .single();
+  const { mockScenario: rawScenario } = await searchParams;
+  const { provider, mockScenario } = await getBlogProvider(rawScenario);
+  const viewer = await provider.getViewer();
+  const profile = await provider.getProfileByUsername(username);
 
   if (!profile) notFound();
 
-  const [{ data: posts }, { count: followerCount }, { count: followingCount }, { data: myFollow }] =
+  const [posts, followCounts, myFollow] =
     await Promise.all([
-      supabase
-        .from("posts")
-        .select("*, profiles:author_id(id, username, display_name, avatar_url)")
-        .eq("author_id", profile.id)
-        .eq("published", true)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("follows")
-        .select("id", { count: "exact", head: true })
-        .eq("following_id", profile.id),
-      supabase
-        .from("follows")
-        .select("id", { count: "exact", head: true })
-        .eq("follower_id", profile.id),
-      user
-        ? supabase
-            .from("follows")
-            .select("id")
-            .eq("follower_id", user.id)
-            .eq("following_id", profile.id)
-            .maybeSingle()
-        : Promise.resolve({ data: null }),
+      provider.getPostsByAuthor(profile.id, { publishedOnly: true }),
+      provider.getFollowCounts(profile.id),
+      viewer ? provider.isFollowing(viewer.id, profile.id) : Promise.resolve(false),
     ]);
 
-  const userPosts = (posts ?? []) as unknown as PostWithAuthor[];
-  const isMe = user?.id === profile.id;
+  const userPosts = posts;
+  const isMe = viewer?.id === profile.id;
 
   return (
     <div className="mx-auto max-w-2xl w-full px-4 py-8">
@@ -79,8 +55,8 @@ export default async function UserProfilePage({
         {!isMe && (
           <FollowButton
             targetUserId={profile.id}
-            path={`/users/${username}`}
-            isFollowing={!!myFollow}
+            path={withMockScenario(`/users/${username}`, mockScenario)}
+            isFollowing={myFollow}
           />
         )}
       </div>
@@ -92,10 +68,10 @@ export default async function UserProfilePage({
           글 <b className="text-black">{userPosts.length}</b>
         </span>
         <span>
-          팔로워 <b className="text-black">{followerCount ?? 0}</b>
+          팔로워 <b className="text-black">{followCounts.followerCount}</b>
         </span>
         <span>
-          팔로잉 <b className="text-black">{followingCount ?? 0}</b>
+          팔로잉 <b className="text-black">{followCounts.followingCount}</b>
         </span>
       </div>
 
@@ -104,7 +80,7 @@ export default async function UserProfilePage({
       ) : (
         <div className="flex flex-col gap-4">
           {userPosts.map((post) => (
-            <PostCard key={post.id} post={post} />
+            <PostCard key={post.id} post={post} mockScenario={mockScenario} />
           ))}
         </div>
       )}

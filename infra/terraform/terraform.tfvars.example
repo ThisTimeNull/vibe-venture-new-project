@@ -1,0 +1,10 @@
+subscription_id     = "21077d85-2c34-4044-b654-bf12a61fc860"
+location            = "koreacentral"
+resource_group_name = "rg-vibe-venture-dev-krc"
+service_plan_name   = "asp-vibe-venture-dev-b1-krc"
+web_app_name        = "app-vibe-venture-krsy0411-dev"
+
+# Fill with your real values (do not commit terraform.tfvars)
+supabase_url      = "https://YOUR_PROJECT_REF.supabase.co"
+supabase_anon_key = "YOUR_SUPABASE_ANON_KEY"
+site_url          = "https://app-vibe-venture-krsy0411-dev.azurewebsites.net"

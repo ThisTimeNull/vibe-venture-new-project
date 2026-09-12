@@ -32,10 +32,40 @@ npm run dev
 ```
 http://localhost:3000 에서 확인할 수 있습니다.
 
+### 4. 개발 전용 Mock 시나리오 확인
+이 프로젝트는 **Mock Data Provider 패턴**을 사용합니다.
+
+- 개발 모드(`NODE_ENV=development`)에서는 기본적으로 로컬 목업 데이터 Provider가 활성화됩니다.
+- 운영 모드에서는 자동으로 Supabase Provider만 사용하므로 목업 데이터가 노출되지 않습니다.
+
+시나리오 전환:
+- 홈 화면 상단의 시나리오 칩 클릭
+- 또는 쿼리 파라미터 직접 지정: `?mockScenario=...`
+
+지원 시나리오:
+- `baseline` (기본)
+- `empty-feed` (빈 피드)
+- `hot-burst` (Hot 지표 폭증)
+- `trend-spike` (Trend 급상승)
+
+예시 URL:
+```text
+http://localhost:3000/?mockScenario=baseline
+http://localhost:3000/?mockScenario=empty-feed
+http://localhost:3000/?mockScenario=hot-burst
+http://localhost:3000/?mockScenario=trend-spike
+```
+
+Mock 모드 비활성화(개발 중 실데이터 확인):
+```bash
+BLOG_MOCK_MODE=off npm run dev
+```
+
 ## 폴더 구조
 - `src/app` — 라우트별 페이지 (App Router)
 - `src/lib/supabase` — Supabase 클라이언트(브라우저/서버/미들웨어), DB 타입
 - `src/lib/actions` — 서버 액션 (글 CRUD, 좋아요/댓글/팔로우, 인증)
+- `src/lib/mock` — 개발 전용 Mock Provider, 시나리오/URL 유틸
 - `src/components` — 공용 UI 컴포넌트
 - `supabase/schema.sql` — DB 스키마 (테이블, RLS, 트리거, trend 뷰)
 
@@ -44,7 +74,40 @@ http://localhost:3000 에서 확인할 수 있습니다.
 - **Trend**: `post_views` 이벤트 로그를 기반으로 최근 5일 이내 조회수가 많은 글 순 (`trending_posts` 뷰 사용)
 
 ## 배포
-현재는 로컬 개발까지만 구성되어 있습니다. 추후 Vercel 등에 배포할 때는 동일한 환경 변수를 배포 환경에 설정하고, Supabase Auth의 Site URL / Redirect URLs에 배포 도메인을 추가하면 됩니다.
+이 저장소는 **Azure App Service + Terraform** 배포를 지원합니다.
+
+> 본 프로젝트에서는 구독 ID `21077d85-2c34-4044-b654-bf12a61fc860`만 사용합니다.
+
+### Terraform으로 인프라 생성
+```bash
+cd infra/terraform
+cp terraform.tfvars.example terraform.tfvars
+```
+
+`terraform.tfvars`에서 `supabase_url`, `supabase_anon_key`, `web_app_name`, `site_url`을 실제 값으로 수정한 뒤:
+
+```bash
+az account set --subscription 21077d85-2c34-4044-b654-bf12a61fc860
+terraform init
+terraform validate
+terraform plan
+terraform apply -auto-approve
+```
+
+### 앱 코드 수동 배포(zip deploy)
+프로젝트 루트에서:
+
+```bash
+./scripts/deploy-appservice.sh rg-vibe-venture-dev-krc app-vibe-venture-krsy0411-dev
+```
+
+스크립트는 로컬에서 `npm ci`, `npm run build`를 수행해 Next.js standalone 아티팩트를 만든 뒤 App Service에 업로드합니다.
+
+### 배포 후 Supabase 설정
+- Supabase Auth > URL Configuration에서
+  - Site URL: `https://<web_app_name>.azurewebsites.net`
+  - Redirect URL: `https://<web_app_name>.azurewebsites.net/auth/callback`
+  를 추가합니다.
 
 ## GitHub CI(자동 품질 검증)
 소스를 GitHub에 push하거나 PR을 올리면 `.github/workflows/ci.yml`이 자동 실행되어 아래를 검증합니다.

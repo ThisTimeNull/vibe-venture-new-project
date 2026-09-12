@@ -2,67 +2,47 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { ko } from "date-fns/locale";
-import { createClient } from "@/lib/supabase/server";
 import { recordView, deletePost } from "@/lib/actions/posts";
 import MarkdownContent from "@/components/MarkdownContent";
 import LikeButton from "@/components/LikeButton";
 import FollowButton from "@/components/FollowButton";
 import CommentSection from "@/components/CommentSection";
+import { getBlogProvider } from "@/lib/mock/provider";
+import { withMockScenario } from "@/lib/mock/url";
 
 export const dynamic = "force-dynamic";
 
 export default async function PostDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ mockScenario?: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: post } = await supabase
-    .from("posts")
-    .select("*, profiles:author_id(id, username, display_name, avatar_url)")
-    .eq("id", id)
-    .single();
+  const { mockScenario: rawScenario } = await searchParams;
+  const { provider, isMock, mockScenario } = await getBlogProvider(rawScenario);
+  const viewer = await provider.getViewer();
+  const post = await provider.getPostById(id);
 
   if (!post) notFound();
 
   // 조회수 기록 (본인 글 조회는 카운트하지 않음)
-  if (!user || user.id !== post.author_id) {
+  if (!isMock && (!viewer || viewer.id !== post.author_id)) {
     await recordView(id);
   }
 
-  const [{ data: comments }, { data: myLike }, { data: myFollow }] =
+  const [comments, myLike, myFollow] =
     await Promise.all([
-      supabase
-        .from("comments")
-        .select("id, content, created_at, author_id, profiles:author_id(username, display_name)")
-        .eq("post_id", id)
-        .order("created_at", { ascending: true }),
-      user
-        ? supabase
-            .from("likes")
-            .select("id")
-            .eq("post_id", id)
-            .eq("user_id", user.id)
-            .maybeSingle()
-        : Promise.resolve({ data: null }),
-      user
-        ? supabase
-            .from("follows")
-            .select("id")
-            .eq("follower_id", user.id)
-            .eq("following_id", post.author_id)
-            .maybeSingle()
-        : Promise.resolve({ data: null }),
+      provider.getComments(id),
+      viewer ? provider.hasLiked(id, viewer.id) : Promise.resolve(false),
+      viewer
+        ? provider.isFollowing(viewer.id, post.author_id)
+        : Promise.resolve(false),
     ]);
 
-  const isAuthor = user?.id === post.author_id;
-  const path = `/posts/${id}`;
+  const isAuthor = viewer?.id === post.author_id;
+  const path = withMockScenario(`/posts/${id}`, mockScenario);
 
   return (
     <div className="mx-auto max-w-2xl w-full px-4 py-8">
@@ -71,7 +51,7 @@ export default async function PostDetailPage({
       <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-200">
         <div className="flex items-center gap-3">
           <Link
-            href={`/users/${post.profiles.username}`}
+            href={withMockScenario(`/users/${post.profiles.username}`, mockScenario)}
             className="flex items-center gap-2"
           >
             {post.profiles.avatar_url ? (
@@ -102,7 +82,7 @@ export default async function PostDetailPage({
             <FollowButton
               targetUserId={post.author_id}
               path={path}
-              isFollowing={!!myFollow}
+              isFollowing={myFollow}
             />
           )}
         </div>
@@ -131,16 +111,16 @@ export default async function PostDetailPage({
           postId={id}
           path={path}
           likeCount={post.like_count}
-          likedByMe={!!myLike}
-          isLoggedIn={!!user}
+          likedByMe={myLike}
+          isLoggedIn={!!viewer}
         />
       </div>
 
       <CommentSection
         postId={id}
-        comments={(comments ?? []) as never}
-        currentUserId={user?.id}
-        isLoggedIn={!!user}
+        comments={comments}
+        currentUserId={viewer?.id}
+        isLoggedIn={!!viewer}
       />
     </div>
   );

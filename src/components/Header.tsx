@@ -1,8 +1,32 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/lib/actions/auth";
+import { isMockModeEnabled } from "@/lib/mock/config";
 
 export default async function Header() {
+  if (isMockModeEnabled()) {
+    return (
+      <header className="border-b border-gray-200 bg-white sticky top-0 z-10">
+        <div className="mx-auto max-w-4xl px-4 h-14 flex items-center justify-between">
+          <Link href="/" className="text-xl font-bold tracking-tight">
+            Log✍️
+          </Link>
+          <div className="flex items-center gap-3">
+            <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800">
+              MOCK MODE
+            </span>
+            <Link
+              href="/login"
+              className="rounded-full bg-black text-white px-4 py-1.5 text-sm font-medium hover:bg-gray-800"
+            >
+              로그인
+            </Link>
+          </div>
+        </div>
+      </header>
+    );
+  }
+
   const supabase = await createClient();
   const {
     data: { user },

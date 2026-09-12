@@ -2,6 +2,7 @@ import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { ko } from "date-fns/locale";
 import type { PostWithAuthor } from "@/lib/supabase/types";
+import { withMockScenario } from "@/lib/mock/url";
 
 function excerpt(markdown: string, length = 120) {
   const plain = markdown
@@ -13,10 +14,16 @@ function excerpt(markdown: string, length = 120) {
   return plain.length > length ? `${plain.slice(0, length)}…` : plain;
 }
 
-export default function PostCard({ post }: { post: PostWithAuthor }) {
+export default function PostCard({
+  post,
+  mockScenario,
+}: {
+  post: PostWithAuthor;
+  mockScenario?: string | null;
+}) {
   return (
     <Link
-      href={`/posts/${post.id}`}
+      href={withMockScenario(`/posts/${post.id}`, mockScenario)}
       className="block rounded-xl border border-gray-200 bg-white p-5 hover:shadow-md transition-shadow"
     >
       <h2 className="text-lg font-bold mb-1.5 line-clamp-1">{post.title}</h2>

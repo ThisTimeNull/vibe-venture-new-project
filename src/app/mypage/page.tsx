@@ -1,37 +1,30 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { notFound, redirect } from "next/navigation";
+import { MOCK_VIEWER_ID } from "@/lib/mock/config";
+import { getBlogProvider } from "@/lib/mock/provider";
+import { withMockScenario } from "@/lib/mock/url";
 import PostCard from "@/components/PostCard";
-import type { PostWithAuthor } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function MyPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+export default async function MyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ mockScenario?: string }>;
+}) {
+  const { mockScenario: rawScenario } = await searchParams;
+  const { provider, isMock, mockScenario } = await getBlogProvider(rawScenario);
+  const viewer = await provider.getViewer();
+  const ownerId = viewer?.id ?? (isMock ? MOCK_VIEWER_ID : null);
+  if (!ownerId) redirect("/login");
 
-  const [{ data: profile }, { data: posts }, { count: followerCount }, { count: followingCount }] =
-    await Promise.all([
-      supabase.from("profiles").select("*").eq("id", user.id).single(),
-      supabase
-        .from("posts")
-        .select("*, profiles:author_id(id, username, display_name, avatar_url)")
-        .eq("author_id", user.id)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("follows")
-        .select("id", { count: "exact", head: true })
-        .eq("following_id", user.id),
-      supabase
-        .from("follows")
-        .select("id", { count: "exact", head: true })
-        .eq("follower_id", user.id),
-    ]);
+  const [profile, myPosts, followCounts] = await Promise.all([
+    provider.getProfileById(ownerId),
+    provider.getPostsByAuthor(ownerId),
+    provider.getFollowCounts(ownerId),
+  ]);
 
-  const myPosts = (posts ?? []) as unknown as PostWithAuthor[];
+  if (!profile) notFound();
   const totalViews = myPosts.reduce((sum, p) => sum + p.view_count, 0);
   const totalLikes = myPosts.reduce((sum, p) => sum + p.like_count, 0);
 
@@ -69,10 +62,10 @@ export default async function MyPage() {
           좋아요 <b className="text-black">{totalLikes}</b>
         </span>
         <span>
-          팔로워 <b className="text-black">{followerCount ?? 0}</b>
+          팔로워 <b className="text-black">{followCounts.followerCount}</b>
         </span>
         <span>
-          팔로잉 <b className="text-black">{followingCount ?? 0}</b>
+          팔로잉 <b className="text-black">{followCounts.followingCount}</b>
         </span>
       </div>
 
@@ -80,14 +73,17 @@ export default async function MyPage() {
       {myPosts.length === 0 ? (
         <p className="text-center text-gray-400 py-16">
           아직 작성한 글이 없습니다.{" "}
-          <Link href="/write" className="underline">
+          <Link
+            href={withMockScenario("/write", mockScenario)}
+            className="underline"
+          >
             첫 글을 작성해보세요!
           </Link>
         </p>
       ) : (
         <div className="flex flex-col gap-4">
           {myPosts.map((post) => (
-            <PostCard key={post.id} post={post} />
+            <PostCard key={post.id} post={post} mockScenario={mockScenario} />
           ))}
         </div>
       )}
